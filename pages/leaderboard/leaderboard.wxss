@@ -111,7 +111,7 @@
 .seg-item.active{background:#19be6b;color:#fff;border-radius:999rpx;box-shadow:0 6rpx 14rpx rgba(25,190,107,.28)}
 
 /* level 2 tabs */
-.tabs2{display:flex;margin:10rpx 20rpx 8rpx;background:#fff;border-radius:12rpx;padding:8rpx 6rpx;box-shadow:0 6rpx 14rpx rgba(0,0,0,.06)}
+.tabs2{display:flex;margin:10rpx 20rpx 8rpx;background:#fff;border-radius:12rpx;padding:8rpx 8rpx;box-shadow:0 6rpx 14rpx rgba(0,0,0,.06)}
 .tab2{position:relative;flex:1;text-align:center;padding:16rpx 0;color:#6b6f75;font-weight:600}
 .tab2.on{color:#19be6b}
 .underline{position:absolute;bottom:6rpx;left:25%;right:25%;height:6rpx;border-radius:6rpx;background:#19be6b}
@@ -119,6 +119,17 @@
   opacity: 0.4;
   pointer-events: none;
 }
+
+/* Same layout as ongoing: header bar (like tabs2) + list + me-row */
+.ended-ranking-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin: 10rpx 20rpx 8rpx; padding: 16rpx 20rpx;
+  background: #fff; border-radius: 12rpx;
+  box-shadow: 0 6rpx 14rpx rgba(0,0,0,.06);
+}
+.ended-ranking-title { font-weight: 600; color: #333; font-size: 32rpx; flex: 1; }
+.back-btn { color: #19be6b; font-size: 28rpx; padding: 8rpx 16rpx; }
+
 /* list container */
 .list{
   height: calc(100vh - 520rpx); 

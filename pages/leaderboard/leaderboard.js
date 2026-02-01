@@ -21,22 +21,30 @@ Page({
     modalHub: { joinCount: app.globalData.joinCount, viewShare: false },
 
     ongoing: {
-      contestId: '',       // 当前进行中的赛事ID,
+      contestId: '',       // current ongoing contest (by tab: day/week/month)
       contestType: '',
+      ongoingByTab: { day: null, week: null, month: null }, // contestId per frequency
       page: 1,
       size: 30,
       hasMore: true,
-      items: [],           // [{rank, userId, name, steps, avatar}]
-      my: null,            // { rank, steps, name, avatar }
-      showMyRow: false,    // 首屏未显示我的名次时，首页底部固定展示
-      firstScreenCount: 0, // 首屏可见的行数（设备相关）
+      items: [],
+      my: null,
+      showMyRow: false,
+      firstScreenCount: 0,
       loadingText: '加载中...'
     },
 
     ended: {
       page: 1, size: 10, hasMore: true,
-      items: [],           // [{contestId,title,dateText,rewardTopN,myRank?,canClaim,claimed}]
-      loadingText: '加载中...'
+      items: [],
+      loadingText: '加载中...',
+      selectedContestId: null,
+      rankingItems: [],
+      rankingTitle: '',
+      rankingLoading: false,
+      my: null,            // my rank for selected finalized contest
+      showMyRow: false,    // overlay my rank at bottom when not in viewport
+      firstScreenCount: 0
     },
 
     vip: {}
@@ -50,7 +58,6 @@ Page({
 
   onShow() {
     app.afterLogin(async () => {
-
       const handedRaw = wx.getStorageSync('contestIdForLeaderboard');
       const handed = handedRaw === '' || handedRaw == null ? null : Number(handedRaw);
       const gotoEnded = !!wx.getStorageSync('gotoEnded');
@@ -58,27 +65,33 @@ Page({
 
       if (Number.isFinite(handed)) {
         wx.removeStorageSync('contestIdForLeaderboard');
+        wx.removeStorageSync('contestTypeForLeaderboard');
+        wx.removeStorageSync('contestStatusForLeaderboard');
         wx.removeStorageSync('gotoEnded');
-        const changed = handed !== this.data.ongoing.contestId;
 
-        const locks = this.computeTabLocks(handedType);
-        this.setData({
-          'ongoing.contestId': handed,
-          seg: gotoEnded ? 'ended' : 'ongoing',
-          tab: locks.defaultTab,
-          tabDisabled: locks.disabled
-        }, () => {
-          if (changed) {
-            if (gotoEnded) this.loadEnded(true);
-            else this.loadOngoing(true);
-          } else if (!this.data.ongoing.items.length) {
-            if (gotoEnded) this.loadEnded(true);
-            else this.loadOngoing(true);
-          } else if (!gotoEnded) {
-            // 数据已存在但切回 ongoing：也要应用首屏逻辑
-            this.reapplyFirstScreenLogic();
-          }
-        });
+        if (gotoEnded) {
+          this.setData({
+            seg: 'ended',
+            'ended.selectedContestId': handed,
+            'ended.rankingItems': [],
+            'ended.rankingTitle': ''
+          }, () => {
+            this.loadEnded(true);
+            this.loadEndedRanking(handed);
+          });
+        } else {
+          this.fillOngoingByTab().then(() => {
+            const locks = this.computeTabLocks(handedType);
+            this.setData({
+              seg: 'ongoing',
+              tab: locks.defaultTab,
+              tabDisabled: locks.disabled,
+              'ongoing.contestId': handed
+            }, () => {
+              this.loadOngoing(true);
+            });
+          });
+        }
       } else {
         if (!this.data.ongoing.items.length || !Number.isFinite(this.data.ongoing.contestId)) {
           this.bootstrap();
@@ -108,19 +121,45 @@ Page({
     return { disabled, defaultTab };
   },
 
-  async bootstrap() {
-    if (!Number.isFinite(this.data.ongoing.contestId)) {
-      try {
-        const res = await api('/contest/list', 'GET');
-        const items = res.items || [];
-        if (items.length) {
-          items.sort((a,b) => new Date(b.endAt) - new Date(a.endAt));
-          this.setData({ 'ongoing.contestId': Number(items[0].id) });
-        }
-      } catch (e) { console.error(e); }
-    }
+  /** Build ongoingByTab (day/week/month by frequency) from contest list */
+  async fillOngoingByTab() {
+    try {
+      const res = await api('/contest/list', 'GET');
+      const items = (res.items || []).slice();
+      const now = Date.now();
+      const ongoing = items.filter(c => {
+        const start = new Date(c.startAt).getTime();
+        const end = new Date(c.endAt).getTime();
+        return now >= start && now <= end;
+      });
+      ongoing.sort((a, b) => new Date(b.endAt) - new Date(a.endAt));
 
-    this.loadOngoing(true);
+      const byTab = { day: null, week: null, month: null };
+      ongoing.forEach(c => {
+        const freq = String(c.frequency || '').toUpperCase();
+        if (freq === 'DAILY' && byTab.day == null) byTab.day = c.id;
+        else if (freq === 'WEEKLY' && byTab.week == null) byTab.week = c.id;
+        else if (freq === 'MONTHLY' && byTab.month == null) byTab.month = c.id;
+      });
+      const tabDisabled = { day: byTab.day == null, week: byTab.week == null, month: byTab.month == null };
+      this.setData({ 'ongoing.ongoingByTab': byTab, tabDisabled });
+      return byTab;
+    } catch (e) {
+      console.error(e);
+      return this.data.ongoing.ongoingByTab || { day: null, week: null, month: null };
+    }
+  },
+
+  async bootstrap() {
+    const byTab = await this.fillOngoingByTab();
+    const defaultContestId = byTab.day || byTab.week || byTab.month || null;
+    const tab = byTab.day != null ? 'day' : (byTab.week != null ? 'week' : 'month');
+    this.setData({
+      'ongoing.contestId': defaultContestId,
+      tab
+    }, () => {
+      this.loadOngoing(true);
+    });
   },
 
   /* ---------------- 一级 / 二级切换 ---------------- */
@@ -128,17 +167,16 @@ Page({
     const seg = e.currentTarget.dataset.k;
     if (seg === this.data.seg) return;
 
-    this.setData({ seg }, () => {
-      if (seg === 'ongoing') {
-        if (this.data.ongoing.items.length === 0) {
-          this.loadOngoing(true);                 // 完全首次加载
-        } else {
-          this.reapplyFirstScreenLogic();         // 与首次加载同样的首屏判断
-        }
-      } else if (seg === 'ended' && this.data.ended.items.length === 0) {
-        this.loadEnded(true);
-      }
-    });
+    if (seg === 'ended') {
+      this.setData({ seg, 'ended.selectedContestId': null, 'ended.rankingItems': [], 'ended.rankingTitle': '' }, () => {
+        if (this.data.ended.items.length === 0) this.loadEnded(true);
+      });
+    } else {
+      this.setData({ seg }, () => {
+        if (this.data.ongoing.items.length === 0) this.loadOngoing(true);
+        else this.reapplyFirstScreenLogic();
+      });
+    }
   },
 
   switchTab(e) {
@@ -146,9 +184,16 @@ Page({
     if (this.data.tabDisabled?.[tab]) return;
     if (tab === this.data.tab) return;
 
-    // 立即清除固定行，防止切换过程中闪烁
-    this.setData({ tab, 'ongoing.showMyRow': false, 'ongoing.firstScreenCount': 0 });
-    this.loadOngoing(true);                      // 重置并按首次加载逻辑处理
+    const contestId = this.data.ongoing.ongoingByTab?.[tab];
+    if (contestId == null) return;
+
+    this.setData({
+      tab,
+      'ongoing.contestId': contestId,
+      'ongoing.showMyRow': false,
+      'ongoing.firstScreenCount': 0
+    });
+    this.loadOngoing(true);
   },
 
   /* ---------------- 进行中榜单（日 / 周 / 月） ---------------- */
@@ -302,6 +347,94 @@ Page({
     this.loadEnded();
   },
 
+  /** Load ranking for one finalized contest (show in finalized scope, not ongoing) */
+  async loadEndedRanking(contestId) {
+    if (!Number.isFinite(contestId)) return;
+    this.setData({ 'ended.rankingLoading': true, 'ended.showMyRow': false, 'ended.my': null });
+    try {
+      const [listRes, meRes] = await Promise.all([
+        api('/leaderboard/list', 'GET', { contestId, page: 1, size: 100, scope: 'day' }),
+        api('/leaderboard/my-rank', 'GET', { contestId, scope: 'day' }).catch(() => null)
+      ]);
+      const list = listRes?.list || [];
+      const item = (this.data.ended.items || []).find(i => i.contestId === contestId);
+      const title = item ? item.title : ('赛事 #' + contestId);
+      this.setData({
+        'ended.rankingItems': list,
+        'ended.rankingTitle': title,
+        'ended.rankingLoading': false,
+        'ended.my': meRes && typeof meRes.rank === 'number' ? meRes : null
+      }, () => {
+        this.updateEndedFirstScreenCountAndVisibility();
+      });
+    } catch (e) {
+      console.error(e);
+      this.setData({ 'ended.rankingLoading': false, 'ended.rankingItems': [], 'ended.my': null });
+    }
+  },
+
+  /** Finalized ranking: compute firstScreenCount and show my-row overlay if my rank outside viewport */
+  updateEndedFirstScreenCountAndVisibility() {
+    if (!this.data.ended.selectedContestId || !this.data.ended.rankingItems.length) return;
+    wx.nextTick(() => {
+      const q = wx.createSelectorQuery().in(this);
+      q.select('.ended-ranking-list').boundingClientRect();
+      q.select('.ended-ranking-list .rank-row').boundingClientRect();
+      q.exec(res => {
+        const [listRect, rowRect] = res || [];
+        let firstCount = 0;
+        if (listRect && rowRect && rowRect.height > 0) {
+          firstCount = Math.max(1, Math.floor(listRect.height / rowRect.height));
+        } else {
+          firstCount = 8;
+        }
+        const my = this.data.ended.my;
+        const items = this.data.ended.rankingItems || [];
+        const includedInViewport = my && typeof my.rank === 'number' && my.rank <= firstCount;
+        const includedInList = my && items.some(x => x.rank === my.rank);
+        const show = !!my && !includedInViewport && includedInList;
+        this.setData({
+          'ended.firstScreenCount': firstCount,
+          'ended.showMyRow': show
+        });
+      });
+    });
+  },
+
+  /** Finalized ranking scroll: remove my-rank overlay */
+  onEndedRankingScroll() {
+    if (this.data.ended.showMyRow) {
+      this.setData({ 'ended.showMyRow': false });
+    }
+  },
+
+  /** Finalized scope: click "查看排名" on a contest → show that contest ranking (stay in finalized) */
+  goRanking(e) {
+    const { id } = e.currentTarget?.dataset || {};
+    if (!id) return;
+    const contestId = Number(id);
+    this.setData({
+      seg: 'ended',
+      'ended.selectedContestId': contestId,
+      'ended.rankingItems': [],
+      'ended.rankingTitle': ''
+    }, () => {
+      this.loadEnded(true);
+      this.loadEndedRanking(contestId);
+    });
+  },
+
+  /** Finalized ranking view: back to list */
+  backEndedList() {
+    this.setData({
+      'ended.selectedContestId': null,
+      'ended.rankingItems': [],
+      'ended.rankingTitle': '',
+      'ended.my': null,
+      'ended.showMyRow': false
+    });
+  },
+
   async loadMeAndVip() {
     const me = await api('/me/getInfo', 'GET');
     const membership = await api('/membership/me', 'GET');
@@ -381,15 +514,6 @@ Page({
     }
   },
   closeClaimModal(){ this.setData({ 'claim.show': false }); },
-
-  goRanking(e) {
-    const { id, type } = e.currentTarget?.dataset || {};
-    if (!id) return;
-    wx.setStorageSync('contestIdForLeaderboard', Number(id));
-    wx.setStorageSync('contestTypeForLeaderboard', String(type || ''));
-    this.setData({seg:'ongoing'});
-    this.loadOngoing(true);
-  },
 
   noop(){}
 });

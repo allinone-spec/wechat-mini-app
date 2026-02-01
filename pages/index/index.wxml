@@ -1,9 +1,10 @@
 <view class="page">
   <!-- 背景图轮播 -->
+  <!-- No preload (first page); lazy-load=false to avoid unload/reload flicker when swiping -->
   <swiper class="bg-swiper" autoplay circular interval="8000" duration="1000" current="{{bgCurrent}}" bindchange="onBgChange">
-    <block wx:for="{{bgImages}}" wx:key="img">
+    <block wx:for="{{bgImages}}" wx:key="index">
       <swiper-item>
-        <image class="bg-img" mode="aspectFill" src="{{item.img}}" lazy-load="{{index !== bgCurrent}}"/>
+        <image class="bg-img" mode="aspectFill" src="{{item.img}}" lazy-load="{{false}}"/>
       </swiper-item>
     </block>
   </swiper>

@@ -94,12 +94,12 @@
     <view class="loading">{{ongoing.loadingText}}</view>
   </scroll-view>
 
-  <!-- “我的名次”：只在第一页、且我的名次不在当前页时显示 -->
-  <view wx:if="{{ongoing.showMyRow & seg==='ongoing'}}" class="rank-row me-row">
+  <!-- “我的名次”：首屏外时底部固定显示，滚动后隐藏 -->
+  <view wx:if="{{ongoing.showMyRow && seg==='ongoing' && ongoing.my}}" class="rank-row me-row">
     <view class="rank-left">
         <view>
-          <image wx:if="{{item.rank <= 3}}" class="medal"
-                src="{{item.rank == 1 ? '/assets/my/Ranking1.png' : (item.rank == 2 ? '/assets/my/Ranking2.png' : '/assets/my/Ranking3.png')}}" />
+          <image wx:if="{{ongoing.my.rank <= 3}}" class="medal"
+                src="{{ongoing.my.rank == 1 ? '/assets/my/Ranking1.png' : (ongoing.my.rank == 2 ? '/assets/my/Ranking2.png' : '/assets/my/Ranking3.png')}}" />
         </view>
     </view>
     <text class="rank-num">{{ongoing.my.rank}}</text>
@@ -114,47 +114,74 @@
   </view>
 
 
-  <!-- 已结束：赛事列表（卡片样式） -->
-  <scroll-view wx:elif="{{seg==='ended'}}" class="list" scroll-y bindscrolltolower="loadMoreEnded">
-    <block wx:for="{{ended.items}}" wx:key="contestId">
-      <!-- 整卡点击：快照；按钮用 catchtap 阻止冒泡 -->
-      <view class="ended-card" data-id="{{item.contestId}}">
-        <view class="ended-left">
-          <!-- 行1：标题（左） + 日期（右） -->
-          <view class="ended-row1">
-            <text class="ended-title">*{{item.title}}</text>
-            <text class="ended-date">{{item.dateText}}</text>
+  <!-- 已结束：默认赛事列表；点击「查看排名」后显示该场排名（在已结束 scope 内，不切到进行中） -->
+  <block wx:elif="{{seg==='ended'}}">
+    <!-- 已结束某场排名详情 -->
+    <view wx:if="{{ended.selectedContestId}}">
+      <view class="ended-ranking-header">
+        <text class="ended-ranking-title">{{ended.rankingTitle}}</text>
+        <text class="back-btn" bindtap="backEndedList">返回列表</text>
+      </view>
+      <scroll-view class="list ended-ranking-list" scroll-y bindscroll="onEndedRankingScroll">
+        <block wx:for="{{ended.rankingItems}}" wx:key="rank">
+          <view class="rank-row">
+            <view class="rank-left">
+              <image wx:if="{{item.rank <= 3}}" class="medal"
+                src="{{item.rank == 1 ? '/assets/my/Ranking1.png' : (item.rank == 2 ? '/assets/my/Ranking2.png' : '/assets/my/Ranking3.png')}}" />
+            </view>
+            <text class="rank-num rank-{{item.rank}}">{{item.rank}}</text>
+            <view class="rank-center">
+              <image class="row-avatar" src="{{ item.avatar || '/assets/my/default_avatar.png' }}" />
+              <text class="row-name">{{ item.name }}</text>
+            </view>
+            <view class="rank-right">
+              <text class="steps">{{ item.steps }}</text>
+              <text class="unit">步</text>
+            </view>
           </view>
-          <!-- 行2：副标题 -->
-          <text class="ended-sub">取得前 {{item.rewardTopN}} 名次 - 即可获得奖励</text>
+        </block>
+        <view wx:if="{{ended.rankingLoading}}" class="loading">加载中...</view>
+        <view wx:elif="{{!ended.rankingItems.length && !ended.rankingLoading}}" class="loading">暂无排名</view>
+      </scroll-view>
+      <!-- 我的名次：不在首屏时底部固定显示，滚动后隐藏 -->
+      <view wx:if="{{ended.showMyRow && ended.my}}" class="rank-row me-row">
+        <view class="rank-left">
+          <image wx:if="{{ended.my.rank <= 3}}" class="medal"
+            src="{{ended.my.rank == 1 ? '/assets/my/Ranking1.png' : (ended.my.rank == 2 ? '/assets/my/Ranking2.png' : '/assets/my/Ranking3.png')}}" />
         </view>
-
-        <view class="ended-right">
-          <button
-            wx:if="{{item.canClaim}}"
-            class="pill pill-green"
-            bindtap="claim"
-            data-id="{{item.contestId}}"
-          >领取奖励</button>
-          <button 
-            wx:elif="{{item.claimed}}" 
-            class="pill pill-blue-outline"
-            bindtap="viewPrize" 
-            data-claim-id="{{item.claimId}}">
-            查看奖励
-          </button>
-          <button
-            wx:else
-            class="pill pill-blue"
-            bindtap="goRanking"
-            data-id="{{item.contestId}}"
-          >查看排名</button>
+        <text class="rank-num">{{ended.my.rank}}</text>
+        <view class="rank-center">
+          <image class="row-avatar" src="{{ ended.my.avatar || '/assets/my/default_avatar.png' }}" />
+          <text class="row-name">{{ ended.my.name || '我的昵称' }}</text>
+        </view>
+        <view class="rank-right">
+          <text class="steps">{{ ended.my.steps }}</text>
+          <text class="unit">步</text>
         </view>
       </view>
-    </block>
+    </view>
 
-    <view class="loading">{{ended.loadingText}}</view>
-  </scroll-view>
+    <!-- 已结束赛事列表 -->
+    <scroll-view wx:else class="list" scroll-y bindscrolltolower="loadMoreEnded">
+      <block wx:for="{{ended.items}}" wx:key="contestId">
+        <view class="ended-card" data-id="{{item.contestId}}">
+          <view class="ended-left">
+            <view class="ended-row1">
+              <text class="ended-title">*{{item.title}}</text>
+              <text class="ended-date">{{item.dateText}}</text>
+            </view>
+            <text class="ended-sub">取得前 {{item.rewardTopN}} 名次 - 即可获得奖励</text>
+          </view>
+          <view class="ended-right">
+            <button wx:if="{{item.canClaim}}" class="pill pill-green" bindtap="claim" data-id="{{item.contestId}}">领取奖励</button>
+            <button wx:elif="{{item.claimed}}" class="pill pill-blue-outline" bindtap="viewPrize" data-claim-id="{{item.claimId}}">查看奖励</button>
+            <button wx:else class="pill pill-blue" bindtap="goRanking" data-id="{{item.contestId}}">查看排名</button>
+          </view>
+        </view>
+      </block>
+      <view class="loading">{{ended.loadingText}}</view>
+    </scroll-view>
+  </block>
 
   <claim-modal
     id="claimModal"

@@ -195,13 +195,14 @@ Page({
     }
   },
 
-  /** Entry → leaderboard (tabBar) */
+  /** Entry → leaderboard (tabBar); scope/tab/ranking from contest id, type, status */
   goMyRanking(e) {
     const { id, type, status } = e.currentTarget?.dataset || {};
     if (!id) return;
     wx.setStorageSync('contestIdForLeaderboard', Number(id));
-    wx.setStorageSync('contestTypeForLeaderboard', String(type));
-    wx.setStorageSync('contestStatusForLeaderboard', String(status));
+    wx.setStorageSync('contestTypeForLeaderboard', String(type || ''));
+    wx.setStorageSync('contestStatusForLeaderboard', String(status || ''));
+    wx.setStorageSync('gotoEnded', status === 'ended' ? '1' : '');
     wx.switchTab({ url: '/pages/leaderboard/leaderboard' });
   },
 

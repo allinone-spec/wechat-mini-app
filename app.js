@@ -5,12 +5,13 @@ function resolveApiBase() {
   try {
     const { miniProgram } = wx.getAccountInfoSync?.() || {};
     const env = miniProgram?.envVersion || 'develop';
-    if (env === 'release')  return 'https://yd.qiaq.online/api';
-    if (env === 'trial')    return 'https://hwls1.qiaq.online/api';
-    return 'http://localhost:8080/api';
+    // Backend user APIs are under /api/user/* (wechat-mini-backend)
+    if (env === 'release')  return 'https://yd.qiaq.online/api/user';
+    if (env === 'trial')    return 'https://hwls1.qiaq.online/api/user';
+    return 'http://localhost:8080/api/user';
   } catch (e) {
     console.warn('resolveApiBase failed, fallback to dev:', e);
-    return 'http://localhost:8080/api';
+    return 'http://localhost:8080/api/user';
   }
 }
 

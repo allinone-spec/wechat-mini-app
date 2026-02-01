@@ -11,7 +11,7 @@ function getAppSafe() {
 function getApiBase() {
   // Prefer app.globalData.apiBase; fallback to a safe default
   const app = getAppSafe();
-  return (app && app.globalData && app.globalData.apiBase) || 'http://localhost:8080/api';
+  return (app && app.globalData && app.globalData.apiBase) || 'http://localhost:8080/api/user';
 }
 
 function getAuthHeader() {
