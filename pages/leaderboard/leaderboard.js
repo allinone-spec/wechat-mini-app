@@ -473,10 +473,7 @@ Page({
           rank: r.rank,
           prizeTitle: d.prizeTitle,
           imageUrl: '/assets/prize_sample.jpg',
-          taobaoLink: d.taobaoLink,
           csWeChatId: d.csWeChatId,
-          orderNo: d.orderNo,
-          waybillNo: d.waybillNo,
           stateHint: d.stateHint
         }
       });

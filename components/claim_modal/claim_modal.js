@@ -27,7 +27,7 @@ Component({
     noop(){},
     close(){ this.triggerEvent('close'); },
     copyCS(){
-      if (!this.data.csWeChatId) return;
+      if (!this.data.csWeChatId || this.data.csWeChatId === "") return;
       wx.setClipboardData({ data: this.data.csWeChatId });
     },
   }
