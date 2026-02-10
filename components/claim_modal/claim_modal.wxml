@@ -9,15 +9,12 @@
         <text class="rank-badge">{{rankText}}</text>
       </view>
       <view class="rank-title">
-        <text class="rank-sub">恭喜 {{userid}} 获得 10元档</text>
+        <text class="rank-sub">恭喜 {{userid}} 获得 {{prize}}元档({{stateHint}})</text>
       </view>
       <!-- Prize card -->
       <view class="prize-card">
         <image class="prize-frame" src="/assets/my/Frame8.png" mode="scaleToFill" />
         <image class="prize-img" src="/assets/my/Reward.png" mode="aspectFit" />
-        <view class="prize-chip" wx:if="{{prizeTitle}}">
-          <text class="prize-chip-text">{{prizeTitle}}</text>
-        </view>
       </view>
 
       <view class="panel panel-self">    

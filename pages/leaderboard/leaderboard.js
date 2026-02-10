@@ -224,7 +224,10 @@ Page({
     const scope = this.data.tab; // 'day' | 'week' | 'month'
 
     try {
-      const r = await api('/leaderboard/list', 'GET', { contestId, page, size, scope });
+      let r;
+      if (Number.isFinite(contestId) && Number(contestId)>0){
+        r = await api('/leaderboard/list', 'GET', { contestId, page, size, scope });
+      }
       const { list = [], hasMore = false } = r || {};
 
       this.setData({
@@ -235,7 +238,7 @@ Page({
         'ongoing.loadingText': hasMore ? '上拉加载更多' : (this.data.ongoing.items.length ? '没有更多了' : '暂无数据')
       });
 
-      if (reset) {
+      if (reset && Number.isFinite(contestId) && Number(contestId) > 0) {
         try {
           const meRank = await api('/leaderboard/my-rank', 'GET', { contestId, scope });
           if (meRank && typeof meRank.rank === 'number') {
@@ -349,7 +352,7 @@ Page({
 
   /** Load ranking for one finalized contest (show in finalized scope, not ongoing) */
   async loadEndedRanking(contestId) {
-    if (!Number.isFinite(contestId)) return;
+    if (!Number.isFinite(contestId) || Number(contestId) <= 0) return;
     this.setData({ 'ended.rankingLoading': true, 'ended.showMyRow': false, 'ended.my': null });
     try {
       const [listRes, meRes] = await Promise.all([
@@ -464,14 +467,14 @@ Page({
     try{
       const r = await api('/reward/start','POST',{ contestId });
       const d = await api('/reward/detail','GET',{ claimId: r.claimId });
-
-      this.setData({
+      if (d.csWeChatId == "") wx.showToast({ title: '客服繁忙，请稍后再试', icon:'none' });
+      else this.setData({
         claim: {
           show: true,
           claimId: r.claimId,
           contestId,
           rank: r.rank,
-          prizeTitle: d.prizeTitle,
+          prize: r.prizeValueCent,
           imageUrl: '/assets/prize_sample.jpg',
           csWeChatId: d.csWeChatId,
           stateHint: d.stateHint
@@ -491,19 +494,17 @@ Page({
     }
     try{
       const d = await api('/reward/detail','GET',{ claimId });
-      this.setData({
+      if (d.csWeChatId == "") wx.showToast({ title: '客服繁忙，请稍后再试', icon:'none' });
+      else this.setData({
         claim: {
           show: true,
-          claimId,
+          claimId: d.claimId,
           contestId: d.contestId,
           rank: d.rank,
-          prizeTitle: d.prizeTitle || '奖品',
-          imageUrl: d.imageUrl || '/assets/prize_sample.jpg',
-          taobaoLink: d.taobaoLink || '',
-          csWeChatId: d.csWeChatId || '15786424201',
-          orderNo: d.orderNo || '',
-          waybillNo: d.waybillNo || '',
-          stateHint: d.stateHint || ''
+          prize: d.prizeValueCent,
+          imageUrl: '/assets/prize_sample.jpg',
+          csWeChatId: d.csWeChatId,
+          stateHint: d.stateHint
         }
       });
     }catch(err){

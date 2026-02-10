@@ -88,36 +88,27 @@ Page({
   async loadContests() {
     try {
       const res = await api('/contest/list', 'GET');
-      const contests = Array.isArray(res?.items) ? res.items.slice() : [];
-
-      // Sort by endAt (desc: latest ending first)
-      contests.sort((a, b) => new Date(b.endAt) - new Date(a.endAt));
-
-      const now = Date.now();
-      const normalized = contests.map((c) => {
-        const start = new Date(c.startAt).getTime();
-        const end = new Date(c.endAt).getTime();
-        let status = 'upcoming';
+      const contests = Array.isArray(res?.items) ? res.items : [];
+      const normalized = contests.map(c => {
         let statusText = '未开始';
-        if (now >= start && now <= end) {
-          status = 'ongoing';
+        if (c.status == 'ONGOING') {
           statusText = '进行中';
-        } else if (now > end) {
-          status = 'ended';
+        } else if (c.status == 'FINALIZED') {
           statusText = '已结束';
+        } else if (c.status == 'FINALIZING') {
+          statusText = '结束中'
         }
 
         return {
           __type: 'contest',
-          __key: `ct_${c.id}`,
+          __key: 'ct_' + c.id,
           id: c.id,
           title: c.title,
           frequency: c.frequency,
           dateText: formatRange(c.startAt, c.endAt),
-          status,
+          status: c.status,
           statusText,
-          joined: !!c.joined,
-          // you can display badges based on c.frequency / status here
+          joined: typeof c.joined === 'boolean' ? c.joined : false
         };
       });
 
@@ -202,7 +193,7 @@ Page({
     wx.setStorageSync('contestIdForLeaderboard', Number(id));
     wx.setStorageSync('contestTypeForLeaderboard', String(type || ''));
     wx.setStorageSync('contestStatusForLeaderboard', String(status || ''));
-    wx.setStorageSync('gotoEnded', status === 'ended' ? '1' : '');
+    wx.setStorageSync('gotoEnded', status === 'FINALIZED' ? '1' : '');
     wx.switchTab({ url: '/pages/leaderboard/leaderboard' });
   },
 

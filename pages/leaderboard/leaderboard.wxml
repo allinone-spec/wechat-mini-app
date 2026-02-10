@@ -191,9 +191,10 @@
     claimId="{{claim.claimId}}"
     contestId="{{claim.contestId}}"
     rank="{{claim.rank}}"
-    prizeTitle="{{claim.prizeTitle}}"
+    prize="{{claim.prize}}"
     imageUrl="{{claim.imageUrl}}"
     csWeChatId="{{claim.csWeChatId}}"
+    stateHint="{{claim.stateHint}}"
     bind:close="closeClaimModal"
   />
 

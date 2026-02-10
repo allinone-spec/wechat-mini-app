@@ -148,18 +148,14 @@ Page({
     try {
       const res = await api('/contest/recent-list', 'GET');
       const contests = Array.isArray(res?.items) ? res.items : [];
-      const now = Date.now();
-
       const normalized = contests.map(c => {
-        const start = new Date(c.startAt).getTime();
-        const end   = new Date(c.endAt).getTime();
-
-        let status = 'upcoming';
         let statusText = '未开始';
-        if (now >= start && now <= end) {
-          status = 'ongoing'; statusText = '进行中';
-        } else if (now > end) {
-          status = 'ended'; statusText = '已结束';
+        if (c.status == 'ONGOING') {
+          statusText = '进行中';
+        } else if (c.status == 'FINALIZED') {
+          statusText = '已结束';
+        } else if (c.status == 'FINALIZING') {
+          statusText = '结束中'
         }
 
         return {
@@ -169,7 +165,7 @@ Page({
           title: c.title,
           frequency: c.frequency,
           dateText: formatRange(c.startAt, c.endAt),
-          status,
+          status: c.status,
           statusText,
           joined: typeof c.joined === 'boolean' ? c.joined : false
         };
@@ -231,11 +227,9 @@ Page({
     wx.getWeRunData({
       success: async (r) => {
         try {
-          console.log("crypted steps data:", r);
           const loginRes = await wx.login()
           const code = loginRes.code
           const resp = await api('/me/stepsUpload', 'POST', { iv: r.iv, encryptedData: r.encryptedData, code: code });
-          console.log(resp?.werun.stepInfoList);
           const todaySteps = Number(getTodaySteps(resp?.werun.stepInfoList) || 0);
           this.setData({ steps: todaySteps });
         } catch (e) {
@@ -253,7 +247,7 @@ Page({
     wx.setStorageSync('contestIdForLeaderboard', Number(id));
     wx.setStorageSync('contestTypeForLeaderboard', String(type || ''));
     wx.setStorageSync('contestStatusForLeaderboard', String(status || ''));
-    wx.setStorageSync('gotoEnded', status === 'ended' ? '1' : '');
+    wx.setStorageSync('gotoEnded', status === 'FINALIZED' ? '1' : '');
     wx.switchTab({ url: '/pages/leaderboard/leaderboard' });
   },
 

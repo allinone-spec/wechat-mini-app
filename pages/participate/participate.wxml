@@ -16,7 +16,7 @@
         </view>
         <view class="card-right">
           <!-- 结束或进行中：仅查看排名（跳“我的”） -->
-          <text wx:if="{{item.status=='ended' || item.status=='ongoing'}}"
+          <text wx:if="{{item.status=='ONGOING' || item.status=='FINALIZING' || item.status=='FINALIZED'}}"
                 class="btn-text ghost"
                 data-id="{{item.id}}"
                 data-type="{{item.frequency}}"
@@ -24,12 +24,12 @@
                 bindtap="goMyRanking">
             查看排名
           </text>
-          <text wx:if="{{item.status==='upcoming' && item.joined}}"
+          <text wx:if="{{item.status==='SCHEDULED' && item.joined}}"
                 class="btn-text show" size="mini" data-id="{{item.id}}">
             已报名
           </text>
           <!-- 未开始：需要声明弹窗 -->
-          <button wx:elif="{{item.status === 'upcoming' && !item.joined}}"
+          <button wx:elif="{{item.status === 'SCHEDULED' && !item.joined}}"
                   class="btn primary btn-round" size="mini"
                   bindtap="openAgreeModal" data-id="{{item.id}}">
             参与挑战

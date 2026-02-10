@@ -8,10 +8,11 @@ Component({
     claimId: Number,
     contestId: Number,
     rank: Number,
+    prize: Number,
     rankSub: String,
-    prizeTitle: String,
     imageUrl: String,
-    csWeChatId: String
+    csWeChatId: String,
+    stateHint: String
   },
   data: {
   },
