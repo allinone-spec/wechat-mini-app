@@ -517,6 +517,7 @@ Page({
     this.setData({ me, vip });
     app.globalData.joinCount = me.joinCount;
     this.setData({ 'modalHub.joinCount': me.joinCount });
+    console.log(me.nickname, me.avata);
     if ((me.nickname === '' || !me.nickname) && (me.avatar === '' || !me.avatar)) {
       this.setData({ showProfileModal: true });
     }
